@@ -53,14 +53,20 @@ class Interactive
 
   def read(args)
     location = @hash[args]
-    File.open(location.file_name,'r') do |f|
-      pos = location.pos
-      if !pos.nil?
+    # キャッシュから取る場合
+    if !location.nil?
+      File.open(location.file_name,'r') do |f|
+        pos = location.pos
         f.seek(pos)
         key, value = f.readline.split(',',2)
         puts 'use in memory hash map'
         return puts value
-      else
+      end
+    end
+
+    # db以下にある全てのファイルから探す
+    Dir.glob('db/db*').each do |file_name|
+      File.open(file_name,'r') do |f|
         f.reverse_each do |r|
           key, value = r.split(',',2)
           return puts value if key == args
@@ -74,7 +80,7 @@ class Interactive
     return puts 'write key:value' if key.nil? || value.nil?
     File.open('db/db','a') do |f|
       len = f.write("#{key},#{value}\n")
-      @hash[key] = Location.new('db', f.pos-len)
+      @hash[key] = Location.new('db/db', f.pos-len)
     end
   end
 
