@@ -1,0 +1,104 @@
+begin
+  require 'bundler/inline'
+rescue
+  put 'Need bundler 1.10 or later'
+end
+
+gemfile(true) do
+  source 'https://rubygems.org'
+end
+
+require 'readline'
+
+Location = Struct.new(:file_name, :pos)
+
+class Interactive
+  class << self
+    def execute
+      new.execute
+    end
+  end
+
+  def initialize
+    @hash = {}
+
+    if File.file?('db/index')
+      File.open('db/index','r') do |f|
+        puts 'load index file'
+        @hash = Marshal.load(f)
+      end
+    end
+  end
+
+  def execute
+    while buf = Readline.readline("> ", true)
+      command, args = buf.split(' ', 2)
+      case command
+      when 'read'
+        read(args)
+      when 'read_all'
+        read_all
+      when 'write'
+        write(args)
+      when 'clear'
+        clear
+      when 'quit'
+        quit
+        break
+      else
+        puts 'command: read, write, read_all, clear, quit'
+      end
+    end
+  end
+
+  def read(args)
+    location = @hash[args]
+    File.open(location.file_name,'r') do |f|
+      pos = location.pos
+      if !pos.nil?
+        f.seek(pos)
+        key, value = f.readline.split(',',2)
+        puts 'use in memory hash map'
+        return puts value
+      else
+        f.reverse_each do |r|
+          key, value = r.split(',',2)
+          return puts value if key == args
+        end
+      end
+    end
+  end
+
+  def write(args)
+    key, value = args.split(':', 2)
+    return puts 'write key:value' if key.nil? || value.nil?
+    File.open('db/db','a') do |f|
+      len = f.write("#{key},#{value}\n")
+      @hash[key] = Location.new('db', f.pos-len)
+    end
+  end
+
+  def read_all
+    File.open('db/db','r') do |f|
+      f.each do |r|
+        key, value = r.split(',',2)
+        puts "#{key}:#{value}"
+      end
+    end
+  end
+
+  def clear
+    File.open('db/db','w') do |f|
+      f = nil
+    end
+    @hash = {}
+  end
+
+  def quit
+    File.open('db/index','w') do |f|
+      Marshal.dump(@hash, f)
+    end
+  end
+end
+
+Interactive.execute
