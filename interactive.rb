@@ -16,10 +16,14 @@ Location = Struct.new(:file_name, :pos)
 class DB
   include Singleton
 
-  class << self
-    def name
-      'db/db'
-    end
+  attr_reader :db_name
+
+  def initialize
+    @db_name = 'db/db'
+  end
+
+  def name
+    db_name
   end
 end
 
@@ -32,6 +36,7 @@ class Interactive
 
   def initialize
     @hash = {}
+    @db = DB.instance
 
     if File.file?('db/index')
       File.open('db/index','r') do |f|
@@ -89,14 +94,14 @@ class Interactive
   def write(args)
     key, value = args.split(':', 2)
     return puts 'write key:value' if key.nil? || value.nil?
-    File.open(DB.name,'a') do |f|
+    File.open(@db.name,'a') do |f|
       len = f.write("#{key},#{value}\n")
       @hash[key] = Location.new('db/db', f.pos-len)
     end
   end
 
   def read_all
-    File.open(DB.name,'r') do |f|
+    File.open(@db.name,'r') do |f|
       f.each do |r|
         key, value = r.split(',',2)
         puts "#{key}:#{value}"
@@ -105,7 +110,7 @@ class Interactive
   end
 
   def clear
-    File.open(DB.name,'w') do |f|
+    File.open(@db.name,'w') do |f|
       f = nil
     end
     @hash = {}
