@@ -9,8 +9,19 @@ gemfile(true) do
 end
 
 require 'readline'
+require 'singleton'
 
 Location = Struct.new(:file_name, :pos)
+
+class DB
+  include Singleton
+
+  class << self
+    def name
+      'db/db'
+    end
+  end
+end
 
 class Interactive
   class << self
@@ -78,14 +89,14 @@ class Interactive
   def write(args)
     key, value = args.split(':', 2)
     return puts 'write key:value' if key.nil? || value.nil?
-    File.open('db/db','a') do |f|
+    File.open(DB.name,'a') do |f|
       len = f.write("#{key},#{value}\n")
       @hash[key] = Location.new('db/db', f.pos-len)
     end
   end
 
   def read_all
-    File.open('db/db','r') do |f|
+    File.open(DB.name,'r') do |f|
       f.each do |r|
         key, value = r.split(',',2)
         puts "#{key}:#{value}"
@@ -94,7 +105,7 @@ class Interactive
   end
 
   def clear
-    File.open('db/db','w') do |f|
+    File.open(DB.name,'w') do |f|
       f = nil
     end
     @hash = {}
