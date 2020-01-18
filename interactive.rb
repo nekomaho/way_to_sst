@@ -10,20 +10,27 @@ end
 
 require 'readline'
 require 'singleton'
+require 'fileutils'
 
 Location = Struct.new(:file_name, :pos)
 
 class DB
   include Singleton
 
-  attr_reader :db_name
+  attr_reader :count
 
   def initialize
-    @db_name = 'db/db'
+    @count = 0
   end
 
   def name
-    db_name
+    "db/db#{count}"
+  end
+
+  def divide
+    return if File.size?(name) < 30
+    puts 'change db file'
+    @count += 1
   end
 end
 
@@ -96,8 +103,10 @@ class Interactive
     return puts 'write key:value' if key.nil? || value.nil?
     File.open(@db.name,'a') do |f|
       len = f.write("#{key},#{value}\n")
-      @hash[key] = Location.new('db/db', f.pos-len)
+      @hash[key] = Location.new(@db.name, f.pos-len)
     end
+
+    @db.divide
   end
 
   def read_all
@@ -110,8 +119,8 @@ class Interactive
   end
 
   def clear
-    File.open(@db.name,'w') do |f|
-      f = nil
+    Dir.glob('db/db*').each do |file_name|
+      FileUtils.rm(file_name)
     end
     @hash = {}
   end
