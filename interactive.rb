@@ -106,6 +106,10 @@ class DB
       index += 1
     end
   end
+
+  def current_db
+    puts "file:db/#{count}"
+  end
 end
 
 class Interactive
@@ -136,11 +140,13 @@ class Interactive
         clear
       when 'all_index'
         all_index
+      when 'current'
+        current_db
       when 'quit'
         quit
         break
       else
-        puts 'command: read, write, read_all, clear, quit'
+        puts 'command: read, write, read_all, all_index, current, clear, quit'
       end
     end
   end
@@ -186,6 +192,10 @@ class Interactive
 
   def all_index
     @db.all_index
+  end
+
+  def current_db
+    @db.current_db
   end
 
   def clear
