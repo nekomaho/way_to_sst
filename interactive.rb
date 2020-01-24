@@ -49,8 +49,11 @@ class DB
 
   def search(key)
     index = count
-    @file_segments.each do |file_segment|
-      return Location.new("db/db#{index}", file_segment.hash_index[key]) if file_segment.hash_index.has_key?(key)
+    @file_segments.reverse_each do |file_segment|
+      if file_segment.hash_index.has_key?(key)
+        puts "db/db#{index}, #{file_segment.hash_index[key]}"
+        return Location.new("db/db#{index}", file_segment.hash_index[key])
+      end
       index -= 1
     end
     nil
