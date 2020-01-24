@@ -60,15 +60,20 @@ class DB
     end
   end
 
+  def write(key, value)
+    File.open(name,'a') do |f|
+      len = f.write("#{key},#{value}\n")
+      index(key, f.pos-len)
+    end
+
+    divide
+  end
+
   def divide
     return if File.size?(name) < 30
     puts 'change db file'
     @count += 1
     @file_segments.push(FileSegment.new)
-  end
-
-  def index(key, value)
-    @file_segments.last.hash_index[key] = value
   end
 
   def dump_index
@@ -125,6 +130,10 @@ class DB
   end
 
   private
+
+  def index(key, value)
+    @file_segments.last.hash_index[key] = value
+  end
 
   def search(key)
     index = count - 1
@@ -185,12 +194,7 @@ class Interactive
   def write(args)
     key, value = args.split(':', 2)
     return puts 'write key:value' if key.nil? || value.nil?
-    File.open(@db.name,'a') do |f|
-      len = f.write("#{key},#{value}\n")
-      @db.index(key, f.pos-len)
-    end
-
-    @db.divide
+    @db.write(key,value)
   end
 
   def read_all
