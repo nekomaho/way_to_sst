@@ -48,7 +48,7 @@ class DB
   end
 
   def search(key)
-    index = count
+    index = count - 1
     @file_segments.reverse_each do |file_segment|
       if file_segment.hash_index.has_key?(key)
         puts "db/db#{index}, #{file_segment.hash_index[key]}"
