@@ -36,6 +36,30 @@ class DB
     "db/db#{count}"
   end
 
+  def read(args)
+    location = search(args)
+    # キャッシュから取る場合
+    if !location.nil?
+      File.open(location.file_name,'r') do |f|
+        pos = location.pos
+        f.seek(pos)
+        key, value = f.readline.split(',',2)
+        puts 'use in memory hash map'
+        return puts value
+      end
+    end
+
+    # db以下にある全てのファイルから探す
+    Dir.glob('db/db*').each do |file_name|
+      File.open(file_name,'r') do |f|
+        f.reverse_each do |r|
+          key, value = r.split(',',2)
+          return puts value if key == args
+        end
+      end
+    end
+  end
+
   def divide
     return if File.size?(name) < 30
     puts 'change db file'
@@ -45,18 +69,6 @@ class DB
 
   def index(key, value)
     @file_segments.last.hash_index[key] = value
-  end
-
-  def search(key)
-    index = count - 1
-    @file_segments.reverse_each do |file_segment|
-      if file_segment.hash_index.has_key?(key)
-        puts "db/db#{index}, #{file_segment.hash_index[key]}"
-        return Location.new("db/db#{index}", file_segment.hash_index[key])
-      end
-      index -= 1
-    end
-    nil
   end
 
   def dump_index
@@ -110,6 +122,20 @@ class DB
   def current_db
     puts "file:db/#{count}"
   end
+
+  private
+
+  def search(key)
+    index = count - 1
+    @file_segments.reverse_each do |file_segment|
+      if file_segment.hash_index.has_key?(key)
+        puts "db/db#{index}, #{file_segment.hash_index[key]}"
+        return Location.new("db/db#{index}", file_segment.hash_index[key])
+      end
+      index -= 1
+    end
+    nil
+  end
 end
 
 class Interactive
@@ -152,27 +178,7 @@ class Interactive
   end
 
   def read(args)
-    location = @db.search(args)
-    # キャッシュから取る場合
-    if !location.nil?
-      File.open(location.file_name,'r') do |f|
-        pos = location.pos
-        f.seek(pos)
-        key, value = f.readline.split(',',2)
-        puts 'use in memory hash map'
-        return puts value
-      end
-    end
-
-    # db以下にある全てのファイルから探す
-    Dir.glob('db/db*').each do |file_name|
-      File.open(file_name,'r') do |f|
-        f.reverse_each do |r|
-          key, value = r.split(',',2)
-          return puts value if key == args
-        end
-      end
-    end
+    @db.read(args)
   end
 
   def write(args)
