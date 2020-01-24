@@ -72,6 +72,7 @@ class DB
   def divide
     return if File.size?(name) < 30
     puts 'change db file'
+    compact_1_file(@count)
     @count += 1
     @file_segments.push(FileSegment.new)
   end
@@ -145,6 +146,30 @@ class DB
       index -= 1
     end
     nil
+  end
+
+  def compact_1_file(file_num)
+    puts "file compaction db/db#{file_num}"
+    file_name = "db/db#{file_num}"
+    compaction_hash = {}
+    File.open(file_name,'r') do |f|
+      compaction_hash = f.each_with_object({}) do |r, hash|
+        key, value = r.split(',',2)
+        hash[key] = value
+      end
+    end
+
+    FileUtils.rm(file_name)
+    file_segment = FileSegment.new
+
+    compaction_hash.each do |key,value|
+      File.open(file_name,'a') do |f|
+        len = f.write("#{key},#{value}")
+        file_segment.hash_index[key] = f.pos-len
+      end
+    end
+
+    @file_segments[file_num] = file_segment
   end
 end
 
