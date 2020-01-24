@@ -96,6 +96,16 @@ class DB
       end
     end
   end
+
+  def all_index
+    index = 0
+    @file_segments.each do |file|
+      file.hash_index.each do |key, value|
+        puts "db#{index}:#{key}:#{value}"
+      end
+      index += 1
+    end
+  end
 end
 
 class Interactive
@@ -124,6 +134,8 @@ class Interactive
         write(args)
       when 'clear'
         clear
+      when 'all_index'
+        all_index
       when 'quit'
         quit
         break
@@ -170,6 +182,10 @@ class Interactive
 
   def read_all
     @db.read_all
+  end
+
+  def all_index
+    @db.all_index
   end
 
   def clear
