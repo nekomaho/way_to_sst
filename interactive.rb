@@ -81,6 +81,7 @@ class DB
     @file_segments.each_with_index do |file_segment, i|
       next if file_segment.hash_index.empty?
       File.open("db/index#{i}",'w') do |f|
+        puts "db/index#{i}:#{file_segment.hash_index}"
         Marshal.dump(file_segment.hash_index, f)
       end
     end
