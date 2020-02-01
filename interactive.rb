@@ -14,13 +14,22 @@ require 'fileutils'
 
 Location = Struct.new(:file_name, :pos)
 
+class FileSegment
+  attr_accessor :hash_index
+
+  def initialize
+    @hash_index = {}
+  end
+end
+
 class DB
   include Singleton
 
-  attr_reader :count
+  attr_reader :count,:file_segment
 
   def initialize
     @count = 0
+    @file_segments = [FileSegment.new]
   end
 
   def name
@@ -31,6 +40,47 @@ class DB
     return if File.size?(name) < 30
     puts 'change db file'
     @count += 1
+    @file_segments.push(FileSegment.new)
+  end
+
+  def index(key, value)
+    @file_segments.last.hash_index[key] = value
+  end
+
+  def search(key)
+    index = count
+    @file_segments.each do |file_segment|
+      return Location.new("db/db#{index}", file_segment.hash_index[key]) if file_segment.hash_index.has_key?(key)
+      index -= 1
+    end
+    nil
+  end
+
+  def dump_index
+    @file_segments.each_with_index do |file_segment, i|
+      File.open("db/index#{i}",'w') do |f|
+        Marshal.dump(file_segment.hash_index, f)
+      end
+    end
+  end
+
+  def load_index
+    files = Dir.glob('db/index*')
+    return if files.count == 0
+    @file_segments = [] # indexが存在しない場合はfile segmentsも存在していないので初期化する
+    Dir.glob('db/index*').reverse_each do |file_name|
+      File.open(file_name,'r') do |f|
+        file_seg = FileSegment.new
+        file_seg.hash_index = Marshal.load(f)
+        @file_segments.push(file_seg)
+      end
+    end
+    @count = files.count - 1
+  end
+
+  def clear
+    @count = 0
+    @file_segments = [FileSegment.new]
   end
 end
 
@@ -45,12 +95,7 @@ class Interactive
     @hash = {}
     @db = DB.instance
 
-    if File.file?('db/index')
-      File.open('db/index','r') do |f|
-        puts 'load index file'
-        @hash = Marshal.load(f)
-      end
-    end
+    @db.load_index
   end
 
   def execute
@@ -75,7 +120,7 @@ class Interactive
   end
 
   def read(args)
-    location = @hash[args]
+    location = @db.search(args)
     # キャッシュから取る場合
     if !location.nil?
       File.open(location.file_name,'r') do |f|
@@ -103,7 +148,7 @@ class Interactive
     return puts 'write key:value' if key.nil? || value.nil?
     File.open(@db.name,'a') do |f|
       len = f.write("#{key},#{value}\n")
-      @hash[key] = Location.new(@db.name, f.pos-len)
+      @db.index(key, f.pos-len)
     end
 
     @db.divide
@@ -122,13 +167,14 @@ class Interactive
     Dir.glob('db/db*').each do |file_name|
       FileUtils.rm(file_name)
     end
-    @hash = {}
+    Dir.glob('db/index*').each do |file_name|
+      FileUtils.rm(file_name)
+    end
+    @db.clear
   end
 
   def quit
-    File.open('db/index','w') do |f|
-      Marshal.dump(@hash, f)
-    end
+    @db.dump_index
   end
 end
 
