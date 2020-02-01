@@ -90,7 +90,7 @@ class DB
     files = Dir.glob('db/index*')
     return if files.count == 0
     @file_segments = [] # indexが存在しない場合はfile segmentsも存在していないので初期化する
-    Dir.glob('db/index*').reverse_each do |file_name|
+    Dir.glob('db/index*').sort.each do |file_name|
       File.open(file_name,'r') do |f|
         file_seg = FileSegment.new
         file_seg.hash_index = Marshal.load(f)
@@ -106,7 +106,7 @@ class DB
   end
 
   def read_all
-    Dir.glob('db/db*').each do |file_name|
+    Dir.glob('db/db*').sort.each do |file_name|
       File.open(file_name,'r') do |f|
         f.each do |r|
           key, value = r.split(',',2)
