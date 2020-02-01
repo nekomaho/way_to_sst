@@ -82,6 +82,17 @@ class DB
     @count = 0
     @file_segments = [FileSegment.new]
   end
+
+  def read_all
+    Dir.glob('db/db*').each do |file_name|
+      File.open(file_name,'r') do |f|
+        f.each do |r|
+          key, value = r.split(',',2)
+          puts "#{file_name}:#{key}:#{value}"
+        end
+      end
+    end
+  end
 end
 
 class Interactive
@@ -155,12 +166,7 @@ class Interactive
   end
 
   def read_all
-    File.open(@db.name,'r') do |f|
-      f.each do |r|
-        key, value = r.split(',',2)
-        puts "#{key}:#{value}"
-      end
-    end
+    @db.read_all
   end
 
   def clear
