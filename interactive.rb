@@ -130,6 +130,53 @@ class DB
     puts "file:db/#{count}"
   end
 
+  def compact
+    # currentよりも1少ないファイルたちを全部対象にする
+    files = Dir.glob('db/db*').sort
+    files.delete("db/db#{count}")
+
+    # 古い順にファイルを開いてハッシュにキーを入れる
+    # 同じキー値は新しい物で上書きされていく
+    compaction_hash = {}
+    files.each do |file|
+      File.open(file,'r') do |f|
+        compaction_hash = f.each_with_object(compaction_hash) do |disp, hash|
+          key, value = disp.split(',',2)
+          puts "before: #{key}:#{value}"
+          hash[key] = value
+        end
+      end
+    end
+
+    # コンパクションが終わったファイル郡のうち最も新しいファイルに対してコンパクションした結果を書き込む
+    file_segment = FileSegment.new
+    File.open(files.last,'w') do |f|
+      compaction_hash.each do |key, value|
+        len = f.write("#{key},#{value}")
+        file_segment.hash_index[key] = f.pos-len
+      end
+    end
+
+    puts "after: hash:#{compaction_hash}"
+
+    # インメモリインデックスを更新する
+    file_num = files.last.match(/db\/db([0-9]+)/)[1].to_i
+    @file_segments[file_num] = file_segment
+    file_num.times do |num|
+      # コンパクションされてまとめられた古いファイルのインデックスは削除する
+      puts "delete index:#{@file_segments[num].hash_index}"
+      @file_segments[num].hash_index = {}
+    end
+
+    # 不要なファイル郡を削除する
+    files.pop # 最後のファイルは消さない
+    files.each do |file|
+      num = file.match(/db\/db([0-9]+)/)[1].to_i
+      FileUtils.rm(file)
+      FileUtils.rm("db/index#{num}")
+    end
+  end
+
   private
 
   def index(key, value)
@@ -203,11 +250,13 @@ class Interactive
         all_index
       when 'current'
         current_db
+      when 'compact'
+        compact
       when 'quit'
         quit
         break
       else
-        puts 'command: read, write, read_all, all_index, current, clear, quit'
+        puts 'command: read, write, read_all, all_index, current, clear, compact, quit'
       end
     end
   end
@@ -232,6 +281,10 @@ class Interactive
 
   def current_db
     @db.current_db
+  end
+
+  def compact
+    @db.compact
   end
 
   def clear
