@@ -6,6 +6,30 @@ end
 
 gemfile(true) do
   source 'https://rubygems.org'
+  gem 'ruby-avl'
+end
+
+# monkey patch For ruby-avl
+module AVLTree
+  class BSTree
+    def search(item)
+      search_node(item, @root)
+    end
+
+    private
+
+    def search_node(item, node)
+      if !node.is_a?(Node)
+        return nil
+      elsif compare(item, node.data) < 0
+        search_node(item, node.left)
+      elsif compare(item, node.data) > 0
+        search_node(item, node.right)
+      else
+        return node.data
+      end
+    end
+  end
 end
 
 require 'readline'
