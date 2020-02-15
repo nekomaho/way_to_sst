@@ -46,14 +46,28 @@ class FileSegment
   end
 end
 
+class DBData
+  attr_reader :key, :value
+
+  def initialize(key, value)
+    @key = key
+    @value = value
+  end
+
+  def compare_to(other_data)
+    key <=> other_data.key
+  end
+end
+
 class DB
   include Singleton
 
-  attr_reader :count,:file_segment
+  attr_reader :count,:file_segment,:in_memory_data
 
   def initialize
     @count = 0
     @file_segments = [FileSegment.new]
+    @in_memory_data = AVLTree::AVLTree.new
   end
 
   def name
@@ -61,6 +75,13 @@ class DB
   end
 
   def read(args)
+    # memory上にデータがないかをまず見る
+    hit_data = in_memory_data.search(DBData.new(args, nil))
+    if hit_data
+      puts 'use in memory data'
+      return puts hit_data.value
+    end
+
     location = search(args)
     # キャッシュから取る場合
     if !location.nil?
@@ -84,13 +105,26 @@ class DB
     end
   end
 
+  FLUSH_DEPTH = 2
   def write(key, value)
-    File.open(name,'a') do |f|
-      len = f.write("#{key},#{value}\n")
-      index(key, f.pos-len)
-    end
+    # 重複する場合は一回消してから入れる
+    hit_data = in_memory_data.search(DBData.new(key, nil))
+    in_memory_data.remove_item(hit_data) if hit_data
+    in_memory_data.insert_item(DBData.new(key, value))
 
-    divide
+    # 木の深さがFLUSH_DEPTHになったらDiskに書き出す
+    if in_memory_data.depth_of_tree == FLUSH_DEPTH
+      File.open(name,'a') do |f|
+        AVLTree::BSTreeTraversal.new.in_order_array(in_memory_data.root).each do |data|
+          len = f.write("#{data.key},#{data.value}\n")
+          index(data.key, f.pos-len)
+        end
+      end
+
+      # 書き込み終わったらmemoryデータを消去する
+      in_memory_data = AVLTree::AVLTree.new
+      divide
+    end
   end
 
   def divide
@@ -99,6 +133,16 @@ class DB
     compact_1_file(@count)
     @count += 1
     @file_segments.push(FileSegment.new)
+  end
+
+  def dump_data
+    return if in_memory_data.number_of_nodes == 0
+    File.open(name,'a') do |f|
+      AVLTree::BSTreeTraversal.new.in_order_array(in_memory_data.root).each do |data|
+        len = f.write("#{data.key},#{data.value}\n")
+        index(data.key, f.pos-len)
+      end
+    end
   end
 
   def dump_index
@@ -323,6 +367,7 @@ class Interactive
   end
 
   def quit
+    @db.dump_data
     @db.dump_index
   end
 end
